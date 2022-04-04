@@ -2,55 +2,69 @@
 
 A Spring Boot application written with Red Hat Fuse components that acts as an AMQP message producer and consumer.
 
+
+## Configure for you environment 
+
+Edit the configuration file 
+```
+./src/main/resources/application.properties
+```
+Edit the following properties in configuration:
+
+amqp.producer.uri
+amqp.consumer.uri
+
+```
+# amqp producer properties
+amqp.producer.enabled=true
+amqp.producer.uri=amqp://iof-amq-0-svc.iof.svc.cluster.local:61617
+# Comment above line and uncoment below 
+# This URL will come from the corresponding Openshift route. To view in console got to 
+# Networking->Routes Select the URL under "Location" for the route with "\<your namespace\>-amq-0-svc-rte
+# amqp.producer.uri=amqps://iof-amq-0-svc-rte-iof.apps.cluster-gj7vv.gj7vv.sandbox1370.opentlc.com:443?transport.verifyHost=false
+
+amqp.producer.user=admin
+amqp.producer.password=admin
+amqp.producer.address=simple.amqp.test
+
+# amqp consumer properties
+amqp.consumer.enabled=true
+amqp.consumer.uri=amqp://iof-amq-0-svc.iof.svc.cluster.local:61617
+# Comment above line and uncoment below 
+# This URL will come from the corresponding Openshift route. To view in console got to 
+# Networking->Routes Select the URL under "Location" for the route with "\<your namespace\>-amq-0-svc-rte
+# amqp.consumer.uri=amqps://iof-amq-0-svc-rte-iof.apps.cluster-gj7vv.gj7vv.sandbox1370.opentlc.com:443?transport.verifyHost=false
+
+
+```
+
+
 ## Building the application
 
-Build the application:
+To build the application run the following from the root of this project:
 
 `mvn clean install`
 
-## Creating a container image with s2i
+## Copy down the Keystore file 
 
-Get the latest Fuse image streams:
+From the Openshift console Go to the namespace where the broker is deployed. 
+Look under secrets. 
+Download the secret for amq broker. 
+'iof-amq-secret' 
+Download the file associated with 'broker.ks'
+There is a link "Save File" for key 'broker.ks' in the Openshift console under secret -> Data (near the bottom)
+Copy this file into your current working directory (the root of this project)
 
-`oc apply -f https://raw.githubusercontent.com/jboss-fuse/application-templates/application-templates-2.1.0.fuse-sb2-790030/fis-image-streams.json -n openshift`
 
-Create a binary s2i build configuration:
+```
+cp ~/Downloads/broker.ks . 
+```
 
-`oc process -f openshift/build.yml -o yaml | oc apply -f -`
+## Run the application 
 
-Source application artifact and run image build:
+To run the application 
 
-`oc start-build fuse-amq-client --from-file=target/fuse-amq-client-1.0-SNAPSHOT.jar --follow`
+```
+java  -Djavax.net.ssl.trustStore=./broker.ks -Djavax.net.ssl.trustStorePassword=changeit -jar target/fuse-amq-client-1.0-SNAPSHOT.jar
 
-## Deploying the application image
-
-Apply a configmap for application configuration:
-
-`oc create configmap fuse-amq-client --from-file=src/main/resources/application.properties --dry-run=client -o yaml | oc apply -f -`
-
-Apply the application template:
-
-`oc process -f openshift/application.yml -o yaml | oc apply -f -`
-
-Rollout the latest deployment
-
-`oc rollout latest dc/fuse-amq-client`
-
-Follow the progress of the deployment
-
-`oc rollout status dc/fuse-amq-client --watch`
-
-## Using a Jenkins pipeline for building and deploying
-
-Get the latest Fuse image streams:
-
-`oc apply -f https://raw.githubusercontent.com/jboss-fuse/application-templates/application-templates-2.1.0.fuse-sb2-790030/fis-image-streams.json -n openshift`
-
-Apply the application pipeline
-
-`oc apply -f openshift/pipeline.yml`
-
-Start the pipeline build
-
-`oc start-build fuse-amq-client-pipeline`
-
+```
